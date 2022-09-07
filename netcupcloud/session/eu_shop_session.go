@@ -3,7 +3,6 @@ package session
 import (
 	"errors"
 	"fmt"
-	"hash/fnv"
 	"io"
 	"net/http"
 	"net/url"
@@ -45,13 +44,11 @@ func NewEUShopSession(customer_no string, customer_password string) *EUShopSessi
 func (session *EUShopSession) newRequest(method string, path string, body io.Reader) (*http.Request, error) {
 	url := baseUrl + path
 	req, err := http.NewRequest(method, url, body)
-
 	req.Header.Set("Host", "www.netcup.eu")
 	req.Header.Set("Origin", "https://www.netcup.eu")
 	req.Header.Set("User-Agent", "Mozilla/5.0")
 	req.Header.Set("Accept", `text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8`)
 	req.Header.Set("Accept-Language", `en-GB,en;q=0.5`)
-
 	return req, err
 }
 
@@ -59,44 +56,29 @@ func (session *EUShopSession) Do(req *http.Request) (*http.Response, error) {
 	// TODO
 	if !session.isAuthenticated {
 		// authenticate
+		session.auth()
 	}
 	resp, err := session.httpClient.Do(req)
 	if err != nil {
-		return nil, errors.New("Something went worng ")
+		return nil, errors.New("Something went wrong while performing the request")
 	}
-
 	return resp, nil
 }
 
-func (session *EUShopSession) Auth() error {
-
+func (session *EUShopSession) auth() error {
 	// Build the authentication body - its a form, so:
-
-	/*
-		 type AuthData struct {
-			kunden_laden string `json:"kunden_laden"`
-			knr          string `json:"knr"`
-			pwd          string `json:"pwd"`
-		}
-			Alternative only using normal post:
-			authBody := &AuthData{strconv.Itoa(session.shopNo), session.customerNo, session.customerPassword}
-			payloadBuf := new(bytes.Buffer)
-			json.NewEncoder(payloadBuf).Encode(authBody)
-	*/
-
 	form := url.Values{}
 	form.Add("kunden_laden", strconv.Itoa(session.shopNo))
 	form.Add("knr", session.customerNo)
 	form.Add("pwd", session.customerPassword)
 
+	// Build the request and test it
 	req, err := session.newRequest("POST", "bestellen/adresse.php", strings.NewReader(form.Encode()))
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
-
 	if err != nil {
 		fmt.Println(err)
 		return errors.New("Cant create the request.")
 	}
-
 	res, err := session.httpClient.Do(req)
 	if err != nil {
 		fmt.Println(err)
@@ -130,13 +112,5 @@ func (session *EUShopSession) Auth() error {
 	}
 
 	session.isAuthenticated = true
-	s, err := doc.Html()
-	hashHTML(s)
 	return nil
-}
-
-func hashHTML(s string) {
-	h := fnv.New32a()
-	h.Write([]byte(s))
-	fmt.Println(h.Sum32())
 }
