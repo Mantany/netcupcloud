@@ -1,0 +1,5 @@
+.env
+local.env
+staging.env
+test.env
+.DS_Store
