@@ -1,19 +1,8 @@
 package session
 
 import (
-	"os"
 	"testing"
-
-	"github.com/mantany/netcupcloud/netcupcloud/test"
 )
-
-var env test.Environment
-
-// prepare the local test environment:
-func TestMain(m *testing.M) {
-	env = test.LoadLocalEnvironment()
-	os.Exit(m.Run())
-}
 
 func TestEUShop_AuthWrongPasswordWrongUsername(t *testing.T) {
 	euShopSession := NewEUShop("Wrong", "password")
@@ -56,13 +45,15 @@ func TestEUShop_ReleaseOrderWithoutItemsInChart(t *testing.T) {
 }
 
 func TestEUShop_ReleaseOrderWithItemInChart(t *testing.T) {
-	euShopSession := NewEUShop(env.CustNo, env.CustPwd)
-	err := euShopSession.PutIntoChart(2948)
-	if err != nil {
-		t.Error("Expected successful release")
-	}
-	erro := euShopSession.ReleaseOrder()
-	if erro != nil {
-		t.Error("Expected successful release")
+	if env.EnablePaidTest {
+		euShopSession := NewEUShop(env.CustNo, env.CustPwd)
+		err := euShopSession.PutIntoChart(2948)
+		if err != nil {
+			t.Error("Expected successful release")
+		}
+		erro := euShopSession.ReleaseOrder()
+		if erro != nil {
+			t.Error("Expected successful release")
+		}
 	}
 }

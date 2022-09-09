@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/http/cookiejar"
 	"net/url"
 	"strconv"
 	"strings"
@@ -12,11 +13,8 @@ import (
 	"github.com/PuerkitoBio/goquery"
 )
 
-// Define the base url & shop ID
 const (
-	shopNo  int    = 1
-	baseURL string = "https://www.netcup.eu/"
-	timeout int    = 15
+	timeout int = 15
 )
 
 type EUShop struct {
@@ -28,21 +26,30 @@ type EUShop struct {
 	httpClient       *http.Client
 }
 
+// Define the base url & shop ID
 func NewEUShop(customerNo string, customerPassword string) *EUShop {
+	jar, err := cookiejar.New(nil)
+	if err != nil {
+		fmt.Println("Error creating cookie jar")
+	}
+	client := &http.Client{
+		Jar: jar,
+	}
+
 	result := &EUShop{
-		shopNo:           shopNo,
-		baseUrl:          baseURL,
+		shopNo:           1,
+		baseUrl:          "https://www.netcup.eu/",
 		customerNo:       customerNo,
 		customerPassword: customerPassword,
 		isAuthenticated:  false,
-		httpClient:       &http.Client{},
+		httpClient:       client,
 	}
 	return result
 }
 
 // Create a new Request to authenticate & set all nessesary header info for request
 func (session *EUShop) newRequest(method string, path string, body io.Reader) (*http.Request, error) {
-	url := baseURL + path
+	url := session.baseUrl + path
 	req, err := http.NewRequest(method, url, body)
 	req.Header.Set("Host", "www.netcup.eu")
 	req.Header.Set("Origin", "https://www.netcup.eu")
@@ -180,7 +187,9 @@ func (session *EUShop) ReleaseOrder() error {
 		return errors.New("ReleaseOrder - No element in chart found")
 	}
 
-	fmt.Println(doc.Html())
-
+	if doc.Find("p:contains('Thank you for your purchase at netcup!')").Length() == 0 {
+		fmt.Println("ReleaseOrder no Order confirmation given!")
+		return errors.New("ReleaseOrder - no Order confirmation given")
+	}
 	return nil
 }
