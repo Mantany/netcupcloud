@@ -15,7 +15,7 @@ import (
 // Define the base url & shop ID
 const (
 	shopNo  int    = 1
-	baseUrl string = "https://www.netcup.eu/"
+	baseURL string = "https://www.netcup.eu/"
 	timeout int    = 15
 )
 
@@ -28,12 +28,12 @@ type EUShopSession struct {
 	httpClient       *http.Client
 }
 
-func NewEUShopSession(customer_no string, customer_password string) *EUShopSession {
+func NewEUShopSession(customerNo string, customerPassword string) *EUShopSession {
 	result := &EUShopSession{
 		shopNo:           shopNo,
-		baseUrl:          baseUrl,
-		customerNo:       customer_no,
-		customerPassword: customer_password,
+		baseUrl:          baseURL,
+		customerNo:       customerNo,
+		customerPassword: customerPassword,
 		isAuthenticated:  false,
 		httpClient:       &http.Client{},
 	}
@@ -42,7 +42,7 @@ func NewEUShopSession(customer_no string, customer_password string) *EUShopSessi
 
 // Create a new Request to authenticate & set all nessesary header info for request
 func (session *EUShopSession) newRequest(method string, path string, body io.Reader) (*http.Request, error) {
-	url := baseUrl + path
+	url := baseURL + path
 	req, err := http.NewRequest(method, url, body)
 	req.Header.Set("Host", "www.netcup.eu")
 	req.Header.Set("Origin", "https://www.netcup.eu")
@@ -53,7 +53,7 @@ func (session *EUShopSession) newRequest(method string, path string, body io.Rea
 }
 
 func (session *EUShopSession) Do(req *http.Request) (*http.Response, error) {
-	// TODO
+
 	if !session.isAuthenticated {
 		// authenticate
 		session.auth()

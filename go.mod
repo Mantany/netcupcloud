@@ -1,4 +1,4 @@
-module github.com/Mantany/netcupcloud
+module github.com/mantany/netcupcloud
 
 go 1.19
 

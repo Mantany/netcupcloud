@@ -1,24 +1,23 @@
 package netcupcloud
 
-import "github.com/Mantany/netcupcloud/netcupcloud/session"
+import "github.com/mantany/netcupcloud/netcupcloud/session"
 
 type Client struct {
-	customer_no             string
-	customer_password       string
-	scp_username            string
-	scp_password            string
-	scp_webservice_password string
-	eu_shop_session         session.EUShopSession
+	customerNo            string
+	customerPassword      string
+	scpUsername           string
+	scpPassword           string
+	scpWebservicePassword string
+	euShopSession         session.EUShopSession
 }
 
-func NewClient(customer_no string, customer_password string) *Client {
+func NewClient(customerNo string, customerPassword string) *Client {
 
 	client := &Client{
-		customer_no:       customer_no,
-		customer_password: customer_password,
+		customerNo:       customerNo,
+		customerPassword: customerPassword,
 	}
 
-	client.eu_shop_session = *session.NewEUShopSession(client.customer_no, client.customer_password)
-
+	client.euShopSession = *session.NewEUShopSession(client.customerNo, client.customerPassword)
 	return client
 }

@@ -14,8 +14,8 @@ const (
 )
 
 type Environment struct {
-	Cust_no  string
-	Cust_pwd string
+	CustNo  string
+	CustPwd string
 }
 
 var env Environment
