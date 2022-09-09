@@ -19,7 +19,7 @@ const (
 	timeout int    = 15
 )
 
-type EUShopSession struct {
+type EUShop struct {
 	shopNo           int
 	baseUrl          string
 	customerNo       string
@@ -28,8 +28,8 @@ type EUShopSession struct {
 	httpClient       *http.Client
 }
 
-func NewEUShopSession(customerNo string, customerPassword string) *EUShopSession {
-	result := &EUShopSession{
+func NewEUShop(customerNo string, customerPassword string) *EUShop {
+	result := &EUShop{
 		shopNo:           shopNo,
 		baseUrl:          baseURL,
 		customerNo:       customerNo,
@@ -41,7 +41,7 @@ func NewEUShopSession(customerNo string, customerPassword string) *EUShopSession
 }
 
 // Create a new Request to authenticate & set all nessesary header info for request
-func (session *EUShopSession) newRequest(method string, path string, body io.Reader) (*http.Request, error) {
+func (session *EUShop) newRequest(method string, path string, body io.Reader) (*http.Request, error) {
 	url := baseURL + path
 	req, err := http.NewRequest(method, url, body)
 	req.Header.Set("Host", "www.netcup.eu")
@@ -52,7 +52,7 @@ func (session *EUShopSession) newRequest(method string, path string, body io.Rea
 	return req, err
 }
 
-func (session *EUShopSession) Do(req *http.Request) (*http.Response, error) {
+func (session *EUShop) do(req *http.Request) (*http.Response, error) {
 
 	if !session.isAuthenticated {
 		// authenticate
@@ -60,12 +60,16 @@ func (session *EUShopSession) Do(req *http.Request) (*http.Response, error) {
 	}
 	resp, err := session.httpClient.Do(req)
 	if err != nil {
-		return nil, errors.New("Something went wrong while performing the request")
+		return nil, err
+	}
+	if resp.StatusCode != 200 {
+		fmt.Println("Faulty status code!", resp.Status, resp.StatusCode)
+		return nil, errors.New("authentication Failed, bad Status Code")
 	}
 	return resp, nil
 }
 
-func (session *EUShopSession) auth() error {
+func (session *EUShop) auth() error {
 	// Build the authentication body - its a form, so:
 	form := url.Values{}
 	form.Add("kunden_laden", strconv.Itoa(session.shopNo))
@@ -77,26 +81,25 @@ func (session *EUShopSession) auth() error {
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	if err != nil {
 		fmt.Println(err)
-		return errors.New("Cant create the request.")
+		return errors.New("cant create the request")
 	}
 	res, err := session.httpClient.Do(req)
 	if err != nil {
 		fmt.Println(err)
-		return errors.New("Something went wrong while the Authentication request was submitted")
+		return errors.New("something went wrong while the Authentication request was submitted")
 	}
 	defer res.Body.Close()
 
 	// Check the status code, must be 200!
 	if res.StatusCode != 200 {
 		fmt.Println("Faulty status code!", res.Status, res.StatusCode)
-		return errors.New("Authentication Failed, bad Status Code")
+		return errors.New("authentication Failed, bad Status Code")
 	}
 
 	// Parse the HTML Document, to find out if the login was successful:
 	doc, err := goquery.NewDocumentFromReader(res.Body)
 	if err != nil {
-		fmt.Println(err)
-		return errors.New("Something went wrong while trying parsing the authentication request.")
+		return err
 	}
 
 	if doc.Find(".error").Length() != 0 {
@@ -112,5 +115,72 @@ func (session *EUShopSession) auth() error {
 	}
 
 	session.isAuthenticated = true
+	return nil
+}
+
+// puts a product with specified ID into the chart
+func (session *EUShop) PutIntoChart(id int) error {
+	path := "bestellen/warenkorb_add.php?produkt=" + strconv.Itoa(id)
+	req, err := session.newRequest("GET", path, nil)
+	if err != nil {
+		fmt.Println("PutIntoChart", err)
+		return err
+	}
+	res, err := session.do(req)
+	if err != nil {
+		fmt.Println("PutIntoChart", err)
+		return err
+	}
+	doc, err := goquery.NewDocumentFromReader(res.Body)
+	if err != nil {
+		fmt.Println("PutIntoChart", err)
+		return err
+	}
+	if doc.Find("main:contains('Error')").Length() != 0 {
+		doc.Find("main:contains('Error')").Each(func(i int, s *goquery.Selection) {
+			fmt.Println("error during PutIntoChart", s.Text())
+		})
+		return errors.New("EUShopSession - Error occured during PutIntoChart")
+	}
+	if doc.Find("h1:contains('The product was added to cart.')").Length() == 0 {
+		fmt.Println("Put Into Chart was not successful  - Website didnt show confirmation")
+		return errors.New("PutIntoChart - Website didnt show confirmation")
+	}
+	return nil
+}
+
+// Releases the order -> will throw an error if you dont have something in your chart
+func (session *EUShop) ReleaseOrder() error {
+	path := "bestellen/bestellung_ausfuehren.php"
+	form := url.Values{}
+	form.Add("agb", "1")
+	form.Add("widerruf_gelesen", "1")
+
+	req, err := session.newRequest("POST", path, strings.NewReader(form.Encode()))
+	if err != nil {
+		fmt.Println("releaseOrder")
+		return err
+	}
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	req.Header.Set("Referer", "https://www.netcup.eu/bestellen/bestellbestaetigung.php")
+
+	res, err := session.do(req)
+	if err != nil {
+		fmt.Println("releaseOrder")
+		return err
+	}
+	doc, err := goquery.NewDocumentFromReader(res.Body)
+	if err != nil {
+		fmt.Println("releaseOrder")
+		return err
+	}
+
+	if doc.Find("span:contains('To make an order, there must be at least one product in your cart.')").Length() != 0 {
+		fmt.Println("ReleaseOrder was not successful - no element in chart found")
+		return errors.New("ReleaseOrder - No element in chart found")
+	}
+
+	fmt.Println(doc.Html())
+
 	return nil
 }

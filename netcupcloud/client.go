@@ -8,7 +8,7 @@ type Client struct {
 	scpUsername           string
 	scpPassword           string
 	scpWebservicePassword string
-	euShopSession         session.EUShopSession
+	euShopSession         session.EUShop
 }
 
 func NewClient(customerNo string, customerPassword string) *Client {
@@ -18,6 +18,6 @@ func NewClient(customerNo string, customerPassword string) *Client {
 		customerPassword: customerPassword,
 	}
 
-	client.euShopSession = *session.NewEUShopSession(client.customerNo, client.customerPassword)
+	client.euShopSession = *session.NewEUShop(client.customerNo, client.customerPassword)
 	return client
 }
