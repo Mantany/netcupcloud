@@ -44,6 +44,7 @@ func NewEUShop(customerNo string, customerPassword string) *EUShop {
 		isAuthenticated:  false,
 		httpClient:       client,
 	}
+
 	return result
 }
 

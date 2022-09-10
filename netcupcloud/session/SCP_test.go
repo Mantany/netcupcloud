@@ -19,3 +19,13 @@ func TestSCP_AuthRightPasswordRightUsername(t *testing.T) {
 		t.Error("Expected successful authentication")
 	}
 }
+
+// This test only succeed, if you have some active servers
+func TestSCP_ListAllServersByIdWithServerAvailable(t *testing.T) {
+	scpSession := NewSCP(env.SCPNo, env.SCPPwd)
+	l, err := scpSession.ListAllServersWithID()
+
+	if l == nil || err != nil || len(l) == 0 {
+		t.Error("Expected successful listing of available server")
+	}
+}

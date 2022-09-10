@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"net/http/cookiejar"
 	"net/url"
+	"regexp"
 	"strings"
 
 	"github.com/PuerkitoBio/goquery"
@@ -60,7 +61,7 @@ func (session *SCP) do(req *http.Request) (*http.Response, error) {
 	}
 	if resp.StatusCode != 200 {
 		fmt.Println("Faulty status code!", resp.Status, resp.StatusCode)
-		return nil, errors.New("Request Failed, bad Status Code")
+		return nil, errors.New("request Failed, bad Status Code")
 	}
 	return resp, nil
 }
@@ -72,7 +73,7 @@ func (session *SCP) auth() error {
 	if err != nil {
 		return err
 	}
-	fmt.Println(req.Body, req.Header)
+
 	res, err := session.httpClient.Do(req)
 	if err != nil {
 		return err
@@ -126,35 +127,118 @@ func (session *SCP) auth() error {
 		})
 		return errors.New("SCP authentication failed")
 	}
+	// TODO check the website validation
 
-	fmt.Println(authdoc.Html())
+	// Set the cookie header
+	//urltest, err := url.Parse("https://www.servercontrolpanel.de/")
+	//req.Header.Set("Cookie", session.httpClient.Jar.Cookies(urltest)[0].String())
 
+	// renew the site key, because it changes after the request
+	session.renewSiteKey(*authdoc)
+
+	if session.scpSiteKey != "" {
+		session.isAuthenticated = true
+	}
 	return nil
 }
 
-func (session *SCP) renewSiteKey(htmlBody io.Reader) error {
-	keys := getJavaScriptVarsFromHTML(htmlBody, "site_key", false)
+func (session *SCP) renewSiteKey(doc goquery.Document) error {
+	keys, err := getJavaScriptVarsFromHTML(doc, "site_key")
+	if err != nil {
+		return err
+	}
 	if len(keys) == 0 {
-		fmt.Println("Cant retrieve sitekey!")
-		return errors.New("Cant retrieve sitekey!")
+		fmt.Println("cant retrieve sitekey")
+		return errors.New("cant retrieve sitekey")
 	}
 	session.scpSiteKey = keys[0]["site_key"]
 	return nil
 }
 
-// This method is used to get all java script vars out of an html document
-// @param: html: request body
+// TODO Should probably move this one to a seperate package
+// This method is used to get all java script vars & arrays out of an html document
+// @param: html: goquery Document
 // @param: var_name: the name of the java-script var
-// @param: match_arrays: wether arrays should be matched f.e.
 // 	i = {} -> Match!
 // 	i['test'] = x
 
-// Output with match_array = True
+// [map[site_key:xck5GEb6t5y4ehd2tp3zEBpWxgn5H7Wg]]
 // [{i: {}, i['test']: x}]
-func getJavaScriptVarsFromHTML(htmlBody io.Reader, var_name string, match_arrays bool) []map[string]string {
+func getJavaScriptVarsFromHTML(doc goquery.Document, varName string) ([]map[string]string, error) {
+	//Grab the whole java script code from the site:
+	t := strings.Join(doc.Find("script").Map(func(i int, s *goquery.Selection) string { return s.Text() }), " ")
+	var result = []map[string]string{}
 
+	// Find all java script variables:
+	pattern := regexp.MustCompile(`(?P<key>\S*?)[^\S\r\n]*?=[^\S\r\n]*?[\'\"]?(?P<value>\S*?)[\'\"]?;`)
+	search := pattern.FindAllStringSubmatch(t, -1)
+
+	// this pattern is used to find arrays
+	// f.e: links['hello'] = x
+	patternFindArrayMatch, err := regexp.Compile(varName + `\[[\'"]?(\S*?)["\']?\]`)
+	if err != nil {
+		return nil, err
+	}
+	// now find the right name, and safe the matches!
+	for _, s := range search {
+		if len(s) == 3 {
+			// search for array match:
+			search := patternFindArrayMatch.FindString(s[1])
+			if s[1] == varName || search != "" {
+				result = append(result, map[string]string{s[1]: s[2]})
+			}
+		}
+	}
+	return result, nil
 }
 
-func (session *SCP) ListAllServerWithID() {
+// uses the SCP to list all server, returns the scpID and rdns of the server
+func (session *SCP) ListAllServersWithID() ([]map[string]string, error) {
+	if session.scpSiteKey == "" || !session.isAuthenticated {
+		session.auth()
+	}
+	path := "SCP/Home"
+	form := url.Values{}
+	form.Add("site_key", session.scpSiteKey)
+	form.Add("statusboxText", "no+new+status+available")
 
+	req, err := session.newRequest("POST", path, strings.NewReader(form.Encode()))
+	req.Header.Set("Referer", "https://www.servercontrolpanel.de/SCP/Home")
+	//important header
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+
+	if err != nil {
+		return nil, err
+	}
+	res, err := session.do(req)
+
+	if err != nil {
+		return nil, err
+	}
+	doc, err := goquery.NewDocumentFromReader(res.Body)
+	if err != nil {
+		return nil, err
+	}
+	links, err := getJavaScriptVarsFromHTML(*doc, "links")
+	if err != nil {
+		return nil, err
+	}
+	if len(links) == 0 {
+		return nil, nil
+	}
+
+	var result = []map[string]string{}
+
+	for _, link := range links {
+		for key, value := range link {
+			rdnsPattern := regexp.MustCompile(`links\[\'(?P<link>.*)\'\]`)
+			rdns := rdnsPattern.FindStringSubmatch(key)
+			idPattern := regexp.MustCompile(`VServersKVM\?selectedVServerId=([0-9]*)`)
+			id := idPattern.FindStringSubmatch(value)
+			if len(rdns) == 2 && len(id) == 2 && rdns[1] != "" && id[1] != "" {
+				result = append(result, map[string]string{"rDNS": rdns[1], "scpID": id[1]})
+			}
+		}
+	}
+	return result, nil
 }
