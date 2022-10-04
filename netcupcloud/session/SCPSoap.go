@@ -2,8 +2,7 @@ package session
 
 import (
 	"context"
-	"encoding/xml"
-	"log"
+	"fmt"
 	"net/http"
 
 	"github.com/globusdigital/soap"
@@ -12,40 +11,44 @@ import (
 type SCPSoap struct {
 	wsdlUrl         string
 	scpSoapUsername string
-	scpSoapPassword string
+	scpSoapKey      string
 	soapClient      *soap.Client
 }
 
-func NewSCPSoap(scpSoapUsername string, scpSoapPassword string) *SCPSoap {
+func NewSCPSoap(scpSoapUsername string, scpSoapKey string) *SCPSoap {
 
-	soapClient := soap.NewClient("https://www.servercontrolpanel.de/WSEndUser?wsdl", &soap.BasicAuth{scpSoapUsername, scpSoapPassword})
+	soapClient := soap.NewClient("https://www.servercontrolpanel.de/WSEndUser?wsdl", &soap.BasicAuth{scpSoapUsername, scpSoapKey})
+	soapClient.UseSoap12()
+	soapClient.ContentType = "application/xml"
+	soapClient.UserAgent = `Mozilla/5.0`
 	result := &SCPSoap{
 		wsdlUrl:         "https://www.servercontrolpanel.de/WSEndUser?wsdl",
 		scpSoapUsername: scpSoapUsername,
-		scpSoapPassword: scpSoapPassword,
+		scpSoapKey:      scpSoapKey,
 		soapClient:      soapClient,
 	}
 	return result
 }
 
 // FooRequest a simple request
-type FooRequest struct {
-	XMLName xml.Name `xml:"fooRequest"`
-	Foo     string
+type getVServersRequest struct {
 }
 
 // FooResponse a simple response
-type FooResponse struct {
-	Bar string
+type getVServersResponse struct {
+	servers []string
 }
 
-func (session *SCPSoap) listAllServer() (http.Response, error) {
-	response := &FooResponse{}
-	httpResponse, err := session.soapClient.Call(context.Context, "getVServers", &FooRequest{Foo: "hello i am foo"}, response)
+func (session *SCPSoap) getVServers() (http.Response, error) {
+	response := &getVServersResponse{}
+	httpResponse, err := session.soapClient.Call(context.TODO(), "getVServers", &getVServersRequest{}, response)
+
+	fmt.Println("Hello")
+	fmt.Println(err)
+
 	if err != nil {
 		return http.Response{}, err
 	}
-
-	log.Println(response.Bar, httpResponse.Status)
+	fmt.Println(httpResponse)
 	return http.Response{}, nil
 }

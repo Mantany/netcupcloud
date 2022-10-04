@@ -6,9 +6,9 @@ import (
 )
 
 // This test only succeed, if you have some active servers
-func TestSCP_ListAllServerst(t *testing.T) {
-	scpSession := NewSCPSoap(env.SCPNo, env.SCPPwd)
-	l, err := scpSession.listAllServer()
+func TestSCPSoap_GetVServers(t *testing.T) {
+	scpSession := NewSCPSoap(env.SCPNo, env.SCPSoapKey)
+	l, err := scpSession.getVServers()
 	if err != nil {
 		t.Error("Expected successful authentication")
 	}
