@@ -1,6 +1,7 @@
 package session
 
 import (
+	"fmt"
 	"testing"
 )
 
@@ -24,7 +25,7 @@ func TestSCP_AuthRightPasswordRightUsername(t *testing.T) {
 func TestSCP_ListAllServersByIdWithServerAvailable(t *testing.T) {
 	scpSession := NewSCP(env.SCPNo, env.SCPPwd)
 	l, err := scpSession.ListAllServersWithID()
-
+	fmt.Print(l)
 	if l == nil || err != nil || len(l) == 0 {
 		t.Error("Expected successful listing of available server")
 	}
