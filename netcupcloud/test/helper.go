@@ -22,8 +22,9 @@ const (
 )
 
 type Environment struct {
-	CustNo         string
-	CustPwd        string
+	CCPNo          string
+	CCPPwd         string
+	CCPMFASecret   string
 	SCPNo          string
 	SCPPwd         string
 	SCPSoapKey     string
@@ -43,7 +44,7 @@ func LoadLocalEnvironment() Environment {
 		if err != nil {
 			log.Fatalf("Cant load the Local Environment. Err: %s", err)
 		}
-		env = Environment{os.Getenv("CUST_NO"), os.Getenv("CUST_PWD"), os.Getenv("SCP_NO"), os.Getenv("SCP_PWD"), os.Getenv("SCP_SOAP_KEY"), enablePaidTest}
+		env = Environment{os.Getenv("CCP_NO"), os.Getenv("CCP_PWD"), os.Getenv("CCP_MFA_SECRET"), os.Getenv("SCP_NO"), os.Getenv("SCP_PWD"), os.Getenv("SCP_SOAP_KEY"), enablePaidTest}
 	}
 	return env
 }

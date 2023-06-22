@@ -84,6 +84,8 @@ func (session *EUShop) auth() error {
 	form.Add("knr", session.customerNo)
 	form.Add("pwd", session.customerPassword)
 
+	fmt.Println(form.Encode())
+
 	// Build the request and test it
 	req, err := session.newRequest("POST", "bestellen/adresse.php", strings.NewReader(form.Encode()))
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")

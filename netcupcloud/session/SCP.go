@@ -38,7 +38,7 @@ func NewSCP(scpNo string, scpPassword string) *SCP {
 	return result
 }
 
-// Create a new Request to authenticate & set all nessesary header info for request
+// Create a new Request to set all nessesary header info for request
 func (session *SCP) newRequest(method string, path string, body io.Reader) (*http.Request, error) {
 	url := session.baseUrl + path
 	req, err := http.NewRequest(method, url, body)
